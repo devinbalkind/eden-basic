@@ -30,7 +30,8 @@ COPY . applications/eden
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r applications/eden/requirements.txt
-RUN sed 's/#.*//' applications/eden/optional_requirements.txt | pip install --no-cache-dir -r /dev/stdin || true
+# Install key optional dependencies (skip GDAL, selenium, pyserial which need system libs)
+RUN pip install --no-cache-dir shapely geopy openpyxl Pillow reportlab xlwt xlrd pyparsing || true
 
 # Configure Eden
 RUN cp applications/eden/modules/templates/000_config.py applications/eden/models/000_config.py && \

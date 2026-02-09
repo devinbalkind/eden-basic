@@ -475,7 +475,9 @@ class GIS:
             geocoder = settings.get_gis_geocode_service()
 
         if geocoder == "nominatim":
-            g = geocoders.Nominatim(user_agent = "Sahana Eden")
+            g = geocoders.Nominatim(user_agent = "Sahana Eden",
+                                     timeout = 10,
+                                     )
         elif geocoder == "geonames":
             username = settings.get_gis_api_google()
             if not username:
