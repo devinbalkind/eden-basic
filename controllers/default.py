@@ -1014,6 +1014,15 @@ def user():
     utable = auth_settings.table_user
 
     arg = request.args(0)
+    if arg == "verify_email":
+        # Ensure we use the user's language
+        key = request.args[-1]
+        query = (utable.registration_key == key)
+        user = db(query).select(utable.language,
+                                limitby=(0, 1)).first()
+        if not user:
+            redirect(auth_settings.verify_email_next)
+        session.s3.language = user.language
 
     auth_settings.on_failed_authorization = URL(f="error")
 
@@ -1106,12 +1115,8 @@ def user():
         # Used when adding organisations from registration form
         return crud_controller(prefix="auth", resourcename="user")
 
-    elif arg == "verify_email":
-        title = response.title = T("Confirm Registration")
-        form = auth.verify_email()
-
     else:
-        # logout or other function
+        # logout or verify_email
         title = ""
         form = auth()
 
@@ -1305,5 +1310,87 @@ def _register_validation(form):
         form_vars.organisation_id = org
 
     return
+
+# -----------------------------------------------------------------------------
+def health_check():
+    """
+        Debug controller to check database state
+    """
+    response.headers["Content-Type"] = "text/plain"
+    
+    output = []
+    output.append("Sahana Eden Health Check")
+    output.append("========================")
+    
+    try:
+        # Check GIS Config
+        config = current.gis.get_config()
+        output.append(f"GIS Config Object: {config}")
+        
+        ctable = s3db.gis_config
+        c_count = db(ctable.uuid == "SITE_DEFAULT").count()
+        output.append(f"GIS Config SITE_DEFAULT count: {c_count}")
+        
+        if c_count > 0:
+            row = db(ctable.uuid == "SITE_DEFAULT").select().first()
+            output.append(f"GIS Config Record: {row}")
+        
+        # Check GIS Hierarchy
+        htable = s3db.gis_hierarchy
+        h_count = db(htable.uuid == "SITE_DEFAULT").count()
+        output.append(f"GIS Hierarchy SITE_DEFAULT count: {h_count}")
+        
+        if h_count > 0:
+            row = db(htable.uuid == "SITE_DEFAULT").select().first()
+            output.append(f"GIS Hierarchy Record: {row}")
+            
+        # Check OSM Layer
+        otable = s3db.gis_layer_openstreetmap
+        o_count = db(otable).count()
+        output.append(f"OSM Layer count: {o_count}")
+        
+        # ---------------------------------------------------------------------
+        # Recent Error Tickets
+        # ---------------------------------------------------------------------
+        output.append("\nRecent Error Tickets")
+        output.append("====================")
+        
+        import glob
+        import os
+        import pickle
+        import datetime
+        
+        errors_path = os.path.join(request.folder, "errors")
+        # Get all ticket files
+        files = glob.glob(os.path.join(errors_path, "*"))
+        # Sort by modification time (newest first)
+        files.sort(key=os.path.getmtime, reverse=True)
+        
+        # Show top 3
+        for fpath in files[:3]:
+            fname = os.path.basename(fpath)
+            timestamp = datetime.datetime.fromtimestamp(os.path.getmtime(fpath))
+            output.append(f"\nTicket: {fname} ({timestamp})")
+            output.append("-" * 40)
+            
+            try:
+                with open(fpath, 'rb') as f:
+                    data = pickle.load(f)
+                    
+                output.append(f"URL: {data.get('output', '').splitlines()[0] if data.get('output') else '?'}")
+                output.append("Traceback:")
+                output.append(data.get('traceback', 'No traceback found'))
+                
+                # Also show snapshot variables if useful, but traceback is key
+                
+            except Exception as e:
+                output.append(f"Error reading ticket: {e}")
+                
+    except Exception as e:
+        output.append(f"ERROR: {e}")
+        import traceback
+        output.append(traceback.format_exc())
+        
+    return "\n".join(output)
 
 # END =========================================================================

@@ -147,7 +147,6 @@ class GISLocationModel(DataModel):
                   label = T("Parent"),
                   ondelete = "RESTRICT",
                   represent = gis_location_represent,
-                  requires = IS_EMPTY_OR(IS_IN_DB(db, "%s.id" % tablename)),
                   widget = S3LocationAutocompleteWidget(level=hierarchy_level_keys),
                   ),
             # Materialised Path
@@ -497,11 +496,10 @@ class GISLocationModel(DataModel):
 
         bulk = s3.bulk
 
-        if addr_street and lat is None and lon is None and bulk:
-
+        if addr_street and lat is None and lon is None:
             geocoder = settings.get_gis_geocode_imported_addresses()
             if geocoder:
-                # Geocode imported addresses
+                # Geocode addresses (both imported and manually entered)
                 postcode = vars_get("postcode", None)
                 # Build Path (won't be populated yet). Note get_parents will not
                 # construct the path during prepopulate. Updating the location
