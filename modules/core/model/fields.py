@@ -347,7 +347,7 @@ class MetaFields:
         return Field("created_on", "datetime",
                      readable = False,
                      writable = False,
-                     default = datetime.datetime.utcnow,
+                     default = lambda: datetime.datetime.utcnow(),
                      )
 
     # -------------------------------------------------------------------------
@@ -360,8 +360,8 @@ class MetaFields:
         return Field("modified_on", "datetime",
                      readable = False,
                      writable = False,
-                     default = datetime.datetime.utcnow,
-                     update = datetime.datetime.utcnow,
+                     default = lambda: datetime.datetime.utcnow(),
+                     update = lambda: datetime.datetime.utcnow(),
                      )
 
     # -------------------------------------------------------------------------
