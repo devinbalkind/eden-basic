@@ -121,4 +121,31 @@ class S3DAL:
 original_tablename = S3DAL.original_tablename
 filter_fields = S3DAL.filter_fields
 
+# =============================================================================
+# Monkey-patch PyDAL's _todatetime to handle callable defaults.
+#
+# Why: PyDAL applies filter_in (which calls _todatetime for datetime fields)
+# BEFORE resolving callable defaults in _compute_fields_for_operation.
+# This means _todatetime receives the function object (e.g. datetime.utcnow)
+# instead of an actual datetime, and crashes on value.replace("T", " ").
+#
+# Fix: If the value is callable, call it first to get the actual datetime.
+#
+try:
+    from pydal.objects import Field as _PyDALField
+    _original_todatetime = _PyDALField._todatetime.__func__ \
+                           if hasattr(_PyDALField._todatetime, "__func__") \
+                           else _PyDALField._todatetime
+
+    @staticmethod
+    def _patched_todatetime(value, *args, **kwargs):
+        """Resolve callable defaults before datetime conversion."""
+        if callable(value):
+            value = value()
+        return _original_todatetime(value, *args, **kwargs)
+
+    _PyDALField._todatetime = _patched_todatetime
+except Exception:
+    pass
+
 # END =========================================================================
